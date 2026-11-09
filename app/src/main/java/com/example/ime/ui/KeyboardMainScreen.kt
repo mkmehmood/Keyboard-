@@ -198,7 +198,15 @@ fun KeyboardMainScreen(
                 }
 
                 KeyboardMode.QWERTY, KeyboardMode.NUMPAD, KeyboardMode.SYMBOLS_1, KeyboardMode.SYMBOLS_2 -> {
+                  // One-handed mode squeezes the keys to one side of the screen
+                  val oneHanded = preferences.oneHandedMode
+                  Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = if (oneHanded == "left") Alignment.TopStart else Alignment.TopEnd
+                  ) {
+                   Box(modifier = if (oneHanded == "off") Modifier.fillMaxWidth() else Modifier.fillMaxWidth(0.82f)) {
                     KeyboardLayoutView(
+                        heightScale = preferences.keyboardHeightScale,
                         mode = mode,
                         shiftState = shiftState,
                         imeAction = service.currentInputEditorInfo?.imeOptions ?: EditorInfo.IME_ACTION_DONE,
@@ -244,8 +252,13 @@ fun KeyboardMainScreen(
                             service.startActivity(intent)
                         }
                     )
+                   }
+                  }
                 }
             }
+
+            // Bottom margin (clears the gesture bar / rounded screen corners)
+            Spacer(modifier = Modifier.height(preferences.keyboardBottomPaddingDp.dp))
         }
 
         // Live Theme Selector In-Keyboard Overlay (replaces platform AlertDialog to prevent window token crash)

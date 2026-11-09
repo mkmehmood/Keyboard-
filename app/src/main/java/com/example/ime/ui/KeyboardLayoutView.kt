@@ -33,7 +33,8 @@ fun KeyboardLayoutView(
     onEnterClicked: () -> Unit,
     onModeChange: (KeyboardMode) -> Unit,
     onEmojiClicked: () -> Unit,
-    onSettingsClicked: () -> Unit
+    onSettingsClicked: () -> Unit,
+    heightScale: Float = 1f
 ) {
     Column(
         modifier = Modifier
@@ -48,7 +49,7 @@ fun KeyboardLayoutView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(42.dp)
+                            .height((42 * heightScale).dp)
                     ) {
                         KeyboardPresets.numberRow.forEach { key ->
                             KeyButton(
@@ -65,7 +66,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyboardPresets.qwertyRow1.forEach { key ->
                         val char = if (shiftState != ShiftState.LOWERCASE) key.primaryText.uppercase() else key.primaryText
@@ -83,7 +84,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                         .padding(horizontal = 14.dp)
                 ) {
                     KeyboardPresets.qwertyRow2.forEach { key ->
@@ -102,7 +103,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     // Shift Key
                     val shiftIcon = when (shiftState) {
@@ -146,7 +147,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("?123", weight = 1.4f, type = KeyType.MODE_CHANGE),
@@ -217,7 +218,8 @@ fun KeyboardLayoutView(
                     onBackspaceClicked = onBackspaceClicked,
                     onSpaceClicked = onSpaceClicked,
                     onEnterClicked = onEnterClicked,
-                    onModeChange = onModeChange
+                    onModeChange = onModeChange,
+                    heightScale = heightScale
                 )
             }
 
@@ -226,7 +228,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(42.dp)
+                        .height((42 * heightScale).dp)
                 ) {
                     KeyboardPresets.numberRow.forEach { key ->
                         KeyButton(keyAction = key, palette = palette, preferences = preferences, onClick = { onKeyClicked(key) })
@@ -236,7 +238,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyboardPresets.symbolsRow1.forEach { key ->
                         KeyButton(keyAction = key, palette = palette, preferences = preferences, onClick = { onKeyClicked(key) })
@@ -246,7 +248,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                         .padding(horizontal = 14.dp)
                 ) {
                     KeyboardPresets.symbolsRow2.forEach { key ->
@@ -257,7 +259,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("=\\<", displayText = "=\\<", weight = 1.35f),
@@ -284,7 +286,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("ABC", weight = 1.4f),
@@ -339,7 +341,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyboardPresets.symbolsPage2Row1.forEach { key ->
                         KeyButton(keyAction = key, palette = palette, preferences = preferences, onClick = { onKeyClicked(key) })
@@ -349,7 +351,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                         .padding(horizontal = 14.dp)
                 ) {
                     KeyboardPresets.symbolsPage2Row2.forEach { key ->
@@ -360,7 +362,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("?123", displayText = "?123", weight = 1.35f),
@@ -387,7 +389,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("ABC", weight = 1.4f),
@@ -475,7 +477,8 @@ private fun NumpadLayout(
     onBackspaceClicked: () -> Unit,
     onSpaceClicked: () -> Unit,
     onEnterClicked: () -> Unit,
-    onModeChange: (KeyboardMode) -> Unit
+    onModeChange: (KeyboardMode) -> Unit,
+    heightScale: Float = 1f
 ) {
     val digitRows = listOf(
         listOf("1", "2", "3"),
@@ -487,7 +490,7 @@ private fun NumpadLayout(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(3 * 52.dp + 2 * 4.dp),
+            .height((3 * 52 * heightScale).dp + 8.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         // Operator column (plain text, no key background)
@@ -576,7 +579,7 @@ private fun NumpadLayout(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height((52 * heightScale).dp)
     ) {
         KeyButton(
             keyAction = KeyAction("ABC", weight = 1.2f),

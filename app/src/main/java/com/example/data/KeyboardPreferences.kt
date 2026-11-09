@@ -30,6 +30,21 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getString("background_image_path", null)
         set(value) = prefs.edit().putString("background_image_path", value).apply()
 
+    /** Key height multiplier (0.8 = compact, 1.0 = default, 1.3 = tall). */
+    var keyboardHeightScale: Float
+        get() = prefs.getFloat("keyboard_height_scale", 1.0f)
+        set(value) = prefs.edit().putFloat("keyboard_height_scale", value).apply()
+
+    /** Extra space below the keyboard in dp (keeps keys clear of gesture bar / curved edges). */
+    var keyboardBottomPaddingDp: Int
+        get() = prefs.getInt("keyboard_bottom_padding_dp", 0)
+        set(value) = prefs.edit().putInt("keyboard_bottom_padding_dp", value).apply()
+
+    /** "off", "left" or "right": shrink the keys to one side for one-handed typing. */
+    var oneHandedMode: String
+        get() = prefs.getString("one_handed_mode", "off") ?: "off"
+        set(value) = prefs.edit().putString("one_handed_mode", value).apply()
+
     var showKeyBorders: Boolean
         get() = prefs.getBoolean("show_key_borders", true)
         set(value) = prefs.edit().putBoolean("show_key_borders", value).apply()

@@ -49,6 +49,9 @@ fun KeyboardSettingsScreen(
     var autoCaptureClip by remember { mutableStateOf(preferences.autoCaptureClipboard) }
     var keyPopup by remember { mutableStateOf(preferences.keyPopupEnabled) }
     var longPressDelay by remember { mutableFloatStateOf(preferences.longPressDelayMs.toFloat()) }
+    var heightScale by remember { mutableFloatStateOf(preferences.keyboardHeightScale) }
+    var bottomPadding by remember { mutableFloatStateOf(preferences.keyboardBottomPaddingDp.toFloat()) }
+    var oneHanded by remember { mutableStateOf(preferences.oneHandedMode) }
     var photoSet by remember { mutableStateOf(preferences.backgroundImagePath != null) }
 
     val context = LocalContext.current
@@ -183,6 +186,61 @@ fun KeyboardSettingsScreen(
                             preferences.backgroundImagePath = null
                             photoSet = false
                         }) { Text("Remove") }
+                    }
+                }
+            }
+        }
+
+        // Keyboard size & position
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Keyboard Size & Position", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+                Column {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Key Height", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("${(heightScale * 100).toInt()}%", fontSize = 13.sp, color = GoogleBlue, fontWeight = FontWeight.Bold)
+                    }
+                    Slider(
+                        value = heightScale,
+                        onValueChange = {
+                            heightScale = it
+                            preferences.keyboardHeightScale = it
+                        },
+                        valueRange = 0.8f..1.3f
+                    )
+                }
+
+                Column {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Bottom Margin", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("${bottomPadding.toInt()} dp", fontSize = 13.sp, color = GoogleBlue, fontWeight = FontWeight.Bold)
+                    }
+                    Slider(
+                        value = bottomPadding,
+                        onValueChange = {
+                            bottomPadding = it
+                            preferences.keyboardBottomPaddingDp = it.toInt()
+                        },
+                        valueRange = 0f..48f
+                    )
+                }
+
+                Text("One-Handed Mode", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("off" to "Off", "left" to "Left", "right" to "Right").forEach { (value, label) ->
+                        FilterChip(
+                            selected = oneHanded == value,
+                            onClick = {
+                                oneHanded = value
+                                preferences.oneHandedMode = value
+                            },
+                            label = { Text(label) }
+                        )
                     }
                 }
             }
