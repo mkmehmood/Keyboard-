@@ -35,9 +35,43 @@ fun KeyboardTopBar(
     onToggleNumberRow: () -> Unit,
     isNumberRowVisible: Boolean,
     onVoiceInput: () -> Unit,
-    onOpenThemes: () -> Unit
+    onOpenThemes: () -> Unit,
+    onTranslate: () -> Unit = {}
 ) {
     var isExpandedTools by remember { mutableStateOf(false) }
+
+    // Gboard-style icon toolbar for the photo theme: apps, clipboard, translate, settings, mic
+    if (palette.translucent && !isExpandedTools) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            ToolbarIcon(Icons.Default.Apps, "Tools", palette) { isExpandedTools = true }
+            ToolbarIcon(Icons.Default.ContentPaste, "Clipboard", palette, onClick = onOpenClipboard)
+            ToolbarIcon(Icons.Default.Translate, "Translate", palette, onClick = onTranslate)
+            ToolbarIcon(Icons.Default.Settings, "Settings", palette, onClick = onOpenSettings)
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.25f))
+                    .clickable(onClick = onVoiceInput),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Voice Input",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+        return
+    }
 
     Surface(
         modifier = Modifier
@@ -201,6 +235,29 @@ fun KeyboardTopBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ToolbarIcon(
+    icon: ImageVector,
+    label: String,
+    palette: KeyboardPalette,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = palette.stripIconColor,
+            modifier = Modifier.size(26.dp)
+        )
     }
 }
 

@@ -1,5 +1,10 @@
 package com.example.ui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +49,20 @@ fun KeyboardSettingsScreen(
     var autoCaptureClip by remember { mutableStateOf(preferences.autoCaptureClipboard) }
     var keyPopup by remember { mutableStateOf(preferences.keyPopupEnabled) }
     var longPressDelay by remember { mutableFloatStateOf(preferences.longPressDelayMs.toFloat()) }
+    var photoSet by remember { mutableStateOf(preferences.backgroundImagePath != null) }
+
+    val context = LocalContext.current
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            val saved = saveKeyboardBackground(context, uri, preferences.backgroundImagePath)
+            if (saved != null) {
+                preferences.backgroundImagePath = saved
+                preferences.theme = KeyboardTheme.PHOTO
+                selectedTheme = KeyboardTheme.PHOTO
+                photoSet = true
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -141,6 +161,28 @@ fun KeyboardSettingsScreen(
                                 }
                             }
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Custom photo background
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(onClick = { photoPicker.launch("image/*") }) {
+                        Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (photoSet) "Change background photo" else "Choose background photo")
+                    }
+                    if (photoSet) {
+                        TextButton(onClick = {
+                            preferences.backgroundImagePath?.let { java.io.File(it).delete() }
+                            preferences.backgroundImagePath = null
+                            photoSet = false
+                        }) { Text("Remove") }
                     }
                 }
             }
@@ -312,5 +354,42 @@ private fun SettingToggleRow(
             Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/**
+ * Copies the picked photo into app storage, scaled down (max 1080 px on the long side) so the
+ * keyboard can decode it quickly. Returns the new file path, or null on failure.
+ */
+private fun saveKeyboardBackground(context: android.content.Context, uri: Uri, oldPath: String?): String? {
+    return try {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 2160) sample *= 2
+        val decode = BitmapFactory.Options().apply { inSampleSize = sample }
+        val decoded = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decode) }
+            ?: return null
+
+        val longSide = maxOf(decoded.width, decoded.height)
+        val bitmap = if (longSide > 1080) {
+            val scale = 1080f / longSide
+            Bitmap.createScaledBitmap(
+                decoded,
+                (decoded.width * scale).toInt().coerceAtLeast(1),
+                (decoded.height * scale).toInt().coerceAtLeast(1),
+                true
+            )
+        } else decoded
+
+        // Unique name so the keyboard notices a changed photo
+        val out = java.io.File(context.filesDir, "keyboard_bg_${System.currentTimeMillis()}.jpg")
+        out.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
+        oldPath?.let { java.io.File(it).delete() }
+        out.absolutePath
+    } catch (e: Exception) {
+        null
     }
 }
