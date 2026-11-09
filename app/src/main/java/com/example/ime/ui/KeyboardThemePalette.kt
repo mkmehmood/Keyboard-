@@ -1,6 +1,8 @@
 package com.example.ime.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import com.example.data.KeyboardPreferences
 import com.example.data.KeyboardTheme
 
 data class KeyboardPalette(
@@ -20,9 +22,38 @@ data class KeyboardPalette(
 )
 
 object KeyboardThemePalettes {
+    /** Palette for the active preference, including the user-built theme. */
+    fun getPalette(prefs: KeyboardPreferences): KeyboardPalette =
+        if (prefs.theme == KeyboardTheme.CUSTOM)
+            fromColors(Color(prefs.customBackground), Color(prefs.customKey), Color(prefs.customAccent))
+        else getPalette(prefs.theme)
+
+    fun fromColors(background: Color, key: Color, accent: Color): KeyboardPalette {
+        val dark = background.luminance() < 0.5f
+        val text = if (dark) Color(0xFFE8EAED) else Color(0xFF202124)
+        val hint = if (dark) Color(0xFF9AA0A6) else Color(0xFF70757A)
+        val onAccent = if (accent.luminance() < 0.5f) Color.White else Color(0xFF111111)
+        val border = if (dark) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.12f)
+        return KeyboardPalette(
+            keyboardBackground = background,
+            keyBackground = key,
+            functionKeyBackground = key.copy(alpha = 0.7f),
+            actionKeyBackground = accent,
+            actionKeyTextColor = onAccent,
+            keyTextColor = text,
+            hintTextColor = hint,
+            keyBorderColor = border,
+            stripBackground = background,
+            stripIconColor = hint,
+            chipBackground = key,
+            chipTextColor = text,
+            isDark = dark
+        )
+    }
+
     fun getPalette(theme: KeyboardTheme): KeyboardPalette {
         return when (theme) {
-            KeyboardTheme.DARK_GRAY -> KeyboardPalette(
+            KeyboardTheme.DARK_GRAY, KeyboardTheme.CUSTOM -> KeyboardPalette(
                 keyboardBackground = Color(0xFF1E1F22),
                 keyBackground = Color(0xFF2B2D31),
                 functionKeyBackground = Color(0xFF24262A),

@@ -103,3 +103,13 @@ The resulting APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
 ├── gradlew.bat                  # Gradle wrapper script (Windows)
 └── gradle/wrapper/              # Gradle wrapper configuration & JAR
 ```
+
+## Recent additions
+- Settings hub (`settings/SettingsHubActivity`) with deep links into the existing tabs
+- Subtypes for English (US/UK), Spanish, French (AZERTY) and German (QWERTZ) with matching letter layouts
+- Theme builder (`ThemeBuilderActivity`) for a custom colour theme
+- Suggestions, next-word prediction, one-edit autocorrect and double-space period (`ime/engine/SuggestionEngine`)
+- Glide typing (`ime/engine/GlideDecoder`, `ime/ui/GlideModifier`)
+- User dictionary stored in Room (DB v3, migration keeps clipboard history)
+
+The engine package is plain Kotlin with JVM unit tests in `app/src/test`.

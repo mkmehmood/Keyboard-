@@ -10,6 +10,12 @@ import android.view.View
 import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import android.view.inputmethod.InputMethodManager
+import android.view.inputmethod.InputMethodSubtype
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
@@ -41,6 +47,19 @@ class GboardImeService : InputMethodService(),
     override val viewModelStore: ViewModelStore get() = store
 
     private var speechRecognizer: SpeechRecognizer? = null
+
+    /** Active subtype locale, e.g. "en_US"; drives layout and suggestion language. */
+    var localeTag by mutableStateOf("en_US")
+        private set
+
+    /** Bumped every time a new text field starts, so the UI can reset its typing state. */
+    var inputSession by mutableIntStateOf(0)
+        private set
+
+    override fun onCurrentInputMethodSubtypeChanged(newSubtype: InputMethodSubtype?) {
+        super.onCurrentInputMethodSubtypeChanged(newSubtype)
+        newSubtype?.locale?.let { localeTag = it }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -89,6 +108,10 @@ class GboardImeService : InputMethodService(),
         super.onStartInputView(info, restarting)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         attachWindowOwners()
+
+        (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.currentInputMethodSubtype?.locale?.let { localeTag = it }
+        inputSession++
 
         // Capture system clipboard if auto-capture is enabled
         val app = applicationContext as? GboardApp

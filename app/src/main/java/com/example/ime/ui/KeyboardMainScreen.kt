@@ -29,6 +29,13 @@ import com.example.ime.GboardImeService
 import com.example.ime.model.KeyAction
 import com.example.ime.model.KeyboardMode
 import com.example.ime.model.ShiftState
+import com.example.ime.model.LayoutKind
+import com.example.ime.engine.GlideDecoder
+import com.example.ime.engine.KeyGeometry
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import com.example.GboardApp
+import com.example.settings.SettingsHubActivity
 
 @Composable
 fun KeyboardMainScreen(
@@ -45,17 +52,117 @@ fun KeyboardMainScreen(
     val latestClip = allClips.firstOrNull()
 
     // Active palette based on preferences
-    val currentTheme = preferences.theme
-    val palette = remember(currentTheme) {
-        KeyboardThemePalettes.getPalette(currentTheme)
-    }
+    val palette = KeyboardThemePalettes.getPalette(preferences)
 
     // Number row state
     var isNumberRowVisible by remember { mutableStateOf(preferences.showNumberRow) }
 
-    // Dynamic suggestions
-    val commonSuggestions = remember {
-        listOf("the", "I", "to", "and", "a", "in", "is", "you", "that", "it", "he", "was", "for", "on", "are", "as", "with")
+    // Typing helpers: suggestions, autocorrect, learning, glide typing
+    val dictionary = remember { (service.applicationContext as GboardApp).userDictionary }
+    val engine = dictionary.engine
+    val isEnglish = service.localeTag.startsWith("en", ignoreCase = true)
+    val layout = LayoutKind.forLocale(service.localeTag)
+    val density = LocalDensity.current.density
+    var keyboardWidthPx by remember { mutableStateOf(0f) }
+    var suggestions by remember { mutableStateOf(listOf<String>()) }
+    var glideWord by remember { mutableStateOf<String?>(null) }
+
+    fun textBefore(): String =
+        service.currentInputConnection?.getTextBeforeCursor(60, 0)?.toString() ?: ""
+
+    val wordRegex = remember { Regex("[\\p{L}']*$") }
+    val prevWordRegex = remember { Regex("([\\p{L}']+)[^\\p{L}']*$") }
+
+    fun currentPrefix(before: String = textBefore()): String = wordRegex.find(before)?.value ?: ""
+
+    fun previousWord(before: String = textBefore()): String? =
+        prevWordRegex.find(before.dropLast(currentPrefix(before).length))?.groupValues?.get(1)
+
+    fun refreshSuggestions() {
+        if (!preferences.showSuggestions) {
+            suggestions = emptyList()
+            return
+        }
+        val before = textBefore()
+        suggestions = engine.suggest(currentPrefix(before), previousWord(before), 3, userOnly = !isEnglish)
+    }
+
+    LaunchedEffect(service.inputSession) {
+        glideWord = null
+        refreshSuggestions()
+    }
+
+    fun typed(text: String) {
+        val ic = service.currentInputConnection ?: return
+        glideWord = null
+        val ch = text.singleOrNull()
+        if (ch != null && !ch.isLetter() && ch != '\'') {
+            // a word just ended: learn it
+            val before = textBefore()
+            val word = currentPrefix(before)
+            if (word.length >= 2) dictionary.learn(word, previousWord(before))
+        }
+        ic.commitText(text, 1)
+        refreshSuggestions()
+    }
+
+    fun onSpace() {
+        val ic = service.currentInputConnection ?: return
+        glideWord = null
+        val before = textBefore()
+        val word = currentPrefix(before)
+        if (word.isNotEmpty()) {
+            val fix = if (preferences.autoCorrect && isEnglish) engine.correction(word) else null
+            if (fix != null) {
+                ic.deleteSurroundingText(word.length, 0)
+                ic.commitText("$fix ", 1)
+            } else {
+                if (word.length >= 2) dictionary.learn(word, previousWord(before))
+                ic.commitText(" ", 1)
+            }
+        } else if (preferences.doubleSpacePeriod && before.length >= 2 &&
+            before.last() == ' ' && before[before.length - 2].isLetterOrDigit()
+        ) {
+            ic.deleteSurroundingText(1, 0)
+            ic.commitText(". ", 1)
+        } else {
+            ic.commitText(" ", 1)
+        }
+        refreshSuggestions()
+    }
+
+    fun onSuggestion(pick: String) {
+        val ic = service.currentInputConnection ?: return
+        val replacing = glideWord
+        if (replacing != null) {
+            ic.deleteSurroundingText(replacing.length + 1, 0)
+            glideWord = pick
+        } else {
+            val before = textBefore()
+            val prefix = currentPrefix(before)
+            val prev = previousWord(before)
+            ic.deleteSurroundingText(prefix.length, 0)
+            dictionary.learn(pick, prev)
+        }
+        ic.commitText("$pick ", 1)
+        if (replacing == null) refreshSuggestions()
+    }
+
+    fun onGlide(candidates: List<String>) {
+        val ic = service.currentInputConnection ?: return
+        if (candidates.isEmpty()) return
+        var first = candidates.first()
+        if (shiftState != ShiftState.LOWERCASE) {
+            first = first.replaceFirstChar { it.uppercase() }
+            if (shiftState == ShiftState.UPPERCASE) shiftState = ShiftState.LOWERCASE
+        }
+        val before = textBefore()
+        if (before.isNotEmpty() && before.last().isLetterOrDigit()) ic.commitText(" ", 1)
+        ic.commitText("$first ", 1)
+        glideWord = first
+        suggestions = candidates.drop(1).take(2).map { c ->
+            if (first[0].isUpperCase()) c.replaceFirstChar { it.uppercase() } else c
+        }
     }
 
     Box(
@@ -74,17 +181,15 @@ fun KeyboardMainScreen(
                 KeyboardTopBar(
                     palette = palette,
                     latestClip = latestClip,
-                    suggestions = commonSuggestions.take(3),
-                    onSuggestionClicked = { suggestion ->
-                        service.currentInputConnection?.commitText("$suggestion ", 1)
-                    },
+                    suggestions = suggestions,
+                    onSuggestionClicked = { suggestion -> onSuggestion(suggestion) },
                     onPasteClip = { clipText ->
                         service.currentInputConnection?.commitText(clipText, 1)
                     },
                     onOpenClipboard = { mode = KeyboardMode.CLIPBOARD },
                     onOpenTextEditing = { mode = KeyboardMode.TEXT_EDIT },
                     onOpenSettings = {
-                        val intent = Intent(service, com.example.MainActivity::class.java).apply {
+                        val intent = Intent(service, SettingsHubActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
                         service.startActivity(intent)
@@ -161,14 +266,37 @@ fun KeyboardMainScreen(
                 }
 
                 KeyboardMode.QWERTY, KeyboardMode.SYMBOLS_1, KeyboardMode.SYMBOLS_2 -> {
+                    Box(
+                        modifier = Modifier
+                            .onSizeChanged { keyboardWidthPx = it.width.toFloat() }
+                            .glideTyping(
+                                enabled = preferences.glideTyping && mode == KeyboardMode.QWERTY && keyboardWidthPx > 0f,
+                                canStart = { p ->
+                                    val keys = KeyGeometry.centers(layout.rows, keyboardWidthPx, density, preferences.showNumberRow)
+                                    val top = if (preferences.showNumberRow) 46f * density else 2f * density
+                                    p.y >= top && p.y <= KeyGeometry.lettersBottom(density, preferences.showNumberRow) &&
+                                        keys.values.any { k ->
+                                            val dx = k.x - p.x
+                                            val dy = k.y - p.y
+                                            dx * dx + dy * dy < (30f * density) * (30f * density)
+                                        }
+                                },
+                                onGlide = { path ->
+                                    val keys = KeyGeometry.centers(layout.rows, keyboardWidthPx, density, preferences.showNumberRow)
+                                    val letters = GlideDecoder.lettersFromPath(path, keys)
+                                    onGlide(GlideDecoder.candidates(letters, engine, 5))
+                                }
+                            )
+                    ) {
                     KeyboardLayoutView(
                         mode = mode,
                         shiftState = shiftState,
                         imeAction = service.currentInputEditorInfo?.imeOptions ?: EditorInfo.IME_ACTION_DONE,
                         preferences = preferences,
                         palette = palette,
+                        layout = layout,
                         onKeyClicked = { action ->
-                            service.currentInputConnection?.commitText(action.primaryText, 1)
+                            typed(action.primaryText)
                             if (shiftState == ShiftState.UPPERCASE) {
                                 shiftState = ShiftState.LOWERCASE
                             }
@@ -184,12 +312,13 @@ fun KeyboardMainScreen(
                             shiftState = ShiftState.CAPS_LOCKED
                         },
                         onBackspaceClicked = {
+                            glideWord = null
                             service.sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+                            refreshSuggestions()
                         },
-                        onSpaceClicked = {
-                            service.currentInputConnection?.commitText(" ", 1)
-                        },
+                        onSpaceClicked = { onSpace() },
                         onEnterClicked = {
+                            glideWord = null
                             val editorInfo = service.currentInputEditorInfo
                             val action = editorInfo?.imeOptions ?: EditorInfo.IME_ACTION_NONE
                             if ((action and EditorInfo.IME_MASK_ACTION) != EditorInfo.IME_ACTION_NONE) {
@@ -197,16 +326,18 @@ fun KeyboardMainScreen(
                             } else {
                                 service.sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
                             }
+                            refreshSuggestions()
                         },
                         onModeChange = { newMode -> mode = newMode },
                         onEmojiClicked = { mode = KeyboardMode.EMOJI },
                         onSettingsClicked = {
-                            val intent = Intent(service, com.example.MainActivity::class.java).apply {
+                            val intent = Intent(service, SettingsHubActivity::class.java).apply {
                                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
                             }
                             service.startActivity(intent)
                         }
                     )
+                    }
                 }
             }
         }

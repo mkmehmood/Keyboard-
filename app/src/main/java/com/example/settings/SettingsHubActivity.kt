@@ -25,16 +25,17 @@ data class SettingsEntry(
     val title: String,
     val summary: String,
     val icon: ImageVector,
-    val tab: String?, // DashboardTab name to open, or null if not built yet
+    val tab: String? = null, // DashboardTab name to open in MainActivity
+    val target: Class<*>? = null, // or a dedicated screen
 )
 
 val settingsEntries = listOf(
-    SettingsEntry("languages", "Languages", "English (US), English (UK)", Icons.Default.Language, "PREFERENCES"),
+    SettingsEntry("languages", "Languages", "English, Español, Français, Deutsch", Icons.Default.Language, "PREFERENCES"),
     SettingsEntry("preferences", "Preferences", "Number row, key popup, haptics, sound", Icons.Default.Tune, "PREFERENCES"),
-    SettingsEntry("theme", "Theme", "Colours and key borders", Icons.Default.Palette, "PREFERENCES"),
-    SettingsEntry("glide", "Glide typing", "Planned", Icons.Default.Gesture, null),
-    SettingsEntry("correction", "Text correction", "Suggestions and auto-capitalise", Icons.Default.Spellcheck, "PREFERENCES"),
-    SettingsEntry("dictionary", "Dictionary", "Planned", Icons.Default.MenuBook, null),
+    SettingsEntry("theme", "Theme", "Presets and your own colours", Icons.Default.Palette, target = ThemeBuilderActivity::class.java),
+    SettingsEntry("glide", "Glide typing", "Slide across letters to type", Icons.Default.Gesture, "PREFERENCES"),
+    SettingsEntry("correction", "Text correction", "Suggestions and auto-correction", Icons.Default.Spellcheck, "PREFERENCES"),
+    SettingsEntry("dictionary", "Dictionary", "Learned words", Icons.Default.MenuBook, target = UserDictionaryActivity::class.java),
     SettingsEntry("clipboard", "Clipboard", "Unlimited history", Icons.Default.ContentPaste, "CLIPBOARD"),
     SettingsEntry("permissions", "Permissions", "What the keyboard can access", Icons.Default.Security, "PERMISSIONS"),
     SettingsEntry("about", "About", "Setup and test field", Icons.Default.Info, "SETUP"),
@@ -49,10 +50,11 @@ class SettingsHubActivity : ComponentActivity() {
                 SettingsHub(
                     onBack = { finish() },
                     onOpen = { entry ->
-                        entry.tab?.let {
-                            startActivity(
+                        when {
+                            entry.target != null -> startActivity(Intent(this, entry.target))
+                            entry.tab != null -> startActivity(
                                 Intent(this, MainActivity::class.java)
-                                    .putExtra(MainActivity.EXTRA_TAB, it)
+                                    .putExtra(MainActivity.EXTRA_TAB, entry.tab)
                             )
                         }
                     },
@@ -80,7 +82,7 @@ fun SettingsHub(onBack: () -> Unit, onOpen: (SettingsEntry) -> Unit) {
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {
             items(settingsEntries, key = { it.id }) { e ->
                 ListItem(
-                    modifier = Modifier.clickable(enabled = e.tab != null) { onOpen(e) },
+                    modifier = Modifier.clickable(enabled = e.tab != null || e.target != null) { onOpen(e) },
                     leadingContent = { Icon(e.icon, contentDescription = null) },
                     headlineContent = { Text(e.title) },
                     supportingContent = { Text(e.summary) },

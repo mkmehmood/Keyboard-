@@ -34,6 +34,9 @@ fun KeyboardSettingsScreen(
 ) {
     var selectedTheme by remember { mutableStateOf(preferences.theme) }
     var keyBorders by remember { mutableStateOf(preferences.showKeyBorders) }
+    var autoCorrectOn by remember { mutableStateOf(preferences.autoCorrect) }
+    var glideOn by remember { mutableStateOf(preferences.glideTyping) }
+    var doubleSpaceOn by remember { mutableStateOf(preferences.doubleSpacePeriod) }
     var numberRow by remember { mutableStateOf(preferences.showNumberRow) }
     var vibrate by remember { mutableStateOf(preferences.vibrateOnKeypress) }
     var vibrateIntensity by remember { mutableFloatStateOf(preferences.vibrateIntensity) }
@@ -147,6 +150,38 @@ fun KeyboardSettingsScreen(
         }
 
         // Layout & Behavior Settings
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Typing", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+                SettingToggleRow(
+                    title = "Glide Typing",
+                    subtitle = "Slide across letters to type a word",
+                    icon = Icons.Default.Gesture,
+                    checked = glideOn,
+                    onCheckedChange = { glideOn = it; preferences.glideTyping = it }
+                )
+                SettingToggleRow(
+                    title = "Auto-correction",
+                    subtitle = "Fix common typos when you press space (English)",
+                    icon = Icons.Default.Spellcheck,
+                    checked = autoCorrectOn,
+                    onCheckedChange = { autoCorrectOn = it; preferences.autoCorrect = it }
+                )
+                SettingToggleRow(
+                    title = "Double-space period",
+                    subtitle = "Two spaces after a word insert a full stop",
+                    icon = Icons.Default.KeyboardReturn,
+                    checked = doubleSpaceOn,
+                    onCheckedChange = { doubleSpaceOn = it; preferences.doubleSpacePeriod = it }
+                )
+            }
+        }
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),

@@ -35,6 +35,9 @@
             android:label="@string/settings_title"
             android:theme="@style/Theme.MyApplication" />
 
+        <activity android:name=".settings.ThemeBuilderActivity" android:exported="false" android:theme="@style/Theme.MyApplication" />
+        <activity android:name=".settings.UserDictionaryActivity" android:exported="false" android:theme="@style/Theme.MyApplication" />
+
         <service
             android:name=".ime.GboardImeService"
             android:label="@string/ime_name"
