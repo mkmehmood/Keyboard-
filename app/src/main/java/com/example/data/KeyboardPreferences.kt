@@ -10,7 +10,8 @@ enum class KeyboardTheme(val id: String, val title: String) {
     LIGHT_CLASSIC("light_classic", "Gboard Light"),
     GOOGLE_BLUE("google_blue", "Google Blue"),
     MINT_GREEN("mint_green", "Mint Green"),
-    CORAL_PINK("coral_pink", "Coral Sunset")
+    CORAL_PINK("coral_pink", "Coral Sunset"),
+    PHOTO("photo", "My Photo")
 }
 
 class KeyboardPreferences(context: Context) {
@@ -23,6 +24,11 @@ class KeyboardPreferences(context: Context) {
             return KeyboardTheme.values().firstOrNull { it.id == id } ?: KeyboardTheme.DARK_GRAY
         }
         set(value) = prefs.edit().putString("theme", value.id).apply()
+
+    /** Absolute path of the custom keyboard background photo (copied into app storage), or null. */
+    var backgroundImagePath: String?
+        get() = prefs.getString("background_image_path", null)
+        set(value) = prefs.edit().putString("background_image_path", value).apply()
 
     var showKeyBorders: Boolean
         get() = prefs.getBoolean("show_key_borders", true)

@@ -1,8 +1,10 @@
 package com.example.ime.ui
 
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +54,17 @@ fun KeyboardMainScreen(
         KeyboardThemePalettes.getPalette(currentTheme)
     }
 
+    // Optional custom photo background (only used by the "My Photo" theme)
+    val backgroundBitmap = remember(palette.translucent, preferences.backgroundImagePath) {
+        if (palette.translucent) {
+            preferences.backgroundImagePath?.let { path ->
+                runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
+            }
+        } else {
+            null
+        }
+    }
+
     // Number row state
     var isNumberRowVisible by remember { mutableStateOf(preferences.showNumberRow) }
 
@@ -64,6 +79,20 @@ fun KeyboardMainScreen(
             .wrapContentHeight()
             .background(palette.keyboardBackground)
     ) {
+        if (backgroundBitmap != null) {
+            Image(
+                bitmap = backgroundBitmap,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+            // Dark scrim keeps white key labels readable on any photo
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.3f))
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -97,7 +126,15 @@ fun KeyboardMainScreen(
                     onVoiceInput = {
                         service.startVoiceRecognition()
                     },
-                    onOpenThemes = { showThemeDialog = true }
+                    onOpenThemes = { showThemeDialog = true },
+                    onTranslate = {
+                        val launch = service.packageManager
+                            .getLaunchIntentForPackage("com.google.android.apps.translate")
+                        if (launch != null) {
+                            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            service.startActivity(launch)
+                        }
+                    }
                 )
             }
 
@@ -160,7 +197,7 @@ fun KeyboardMainScreen(
                     )
                 }
 
-                KeyboardMode.QWERTY, KeyboardMode.SYMBOLS_1, KeyboardMode.SYMBOLS_2 -> {
+                KeyboardMode.QWERTY, KeyboardMode.NUMPAD, KeyboardMode.SYMBOLS_1, KeyboardMode.SYMBOLS_2 -> {
                     KeyboardLayoutView(
                         mode = mode,
                         shiftState = shiftState,

@@ -2,6 +2,7 @@ package com.example.ime.model
 
 sealed class KeyboardMode {
     object QWERTY : KeyboardMode()
+    object NUMPAD : KeyboardMode()
     object SYMBOLS_1 : KeyboardMode()
     object SYMBOLS_2 : KeyboardMode()
     object EMOJI : KeyboardMode()

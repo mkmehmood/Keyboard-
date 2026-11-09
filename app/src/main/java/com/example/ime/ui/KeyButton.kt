@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +45,9 @@ fun RowScope.KeyButton(
     isFunctionKey: Boolean = false,
     isActionKey: Boolean = false,
     isSelected: Boolean = false,
+    icon: ImageVector? = null,
+    textSize: TextUnit = TextUnit.Unspecified,
+    cornerRadius: Dp = 8.dp,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null
 ) {
@@ -70,7 +78,7 @@ fun RowScope.KeyButton(
     }
 
     val borderModifier = if (preferences.showKeyBorders && !isActionKey && !isSelected) {
-        Modifier.border(0.6.dp, palette.keyBorderColor, RoundedCornerShape(8.dp))
+        Modifier.border(0.6.dp, palette.keyBorderColor, RoundedCornerShape(cornerRadius))
     } else {
         Modifier
     }
@@ -81,7 +89,7 @@ fun RowScope.KeyButton(
             .fillMaxHeight()
             .padding(horizontal = 2.dp, vertical = 3.dp)
             .then(borderModifier)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(cornerRadius))
             .background(backgroundColor)
             .combinedClickable(
                 interactionSource = interactionSource,
@@ -100,16 +108,26 @@ fun RowScope.KeyButton(
         contentAlignment = Alignment.Center
     ) {
         // Main Text / Icon representation
-        Text(
-            text = keyAction.displayText,
-            color = textColor,
-            fontSize = if (keyAction.displayText.length > 3) 14.sp else 19.sp,
-            fontWeight = if (isActionKey || isFunctionKey) FontWeight.SemiBold else FontWeight.Normal,
-            textAlign = TextAlign.Center
-        )
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = keyAction.displayText,
+                tint = textColor,
+                modifier = Modifier.size(24.dp)
+            )
+        } else {
+            Text(
+                text = keyAction.displayText,
+                color = textColor,
+                fontSize = if (textSize != TextUnit.Unspecified) textSize
+                else if (keyAction.displayText.length > 3) 14.sp else 19.sp,
+                fontWeight = if (isActionKey || isFunctionKey) FontWeight.SemiBold else FontWeight.Normal,
+                textAlign = TextAlign.Center
+            )
+        }
 
         // Upper-right hint character (e.g., "1" on "q", "@" on "a")
-        if (!keyAction.hintText.isNullOrEmpty() && !isActionKey && !isFunctionKey) {
+        if (!palette.translucent && !keyAction.hintText.isNullOrEmpty() && !isActionKey && !isFunctionKey) {
             Text(
                 text = keyAction.hintText,
                 color = palette.hintTextColor,
