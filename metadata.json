@@ -1,0 +1,6 @@
+{
+  "name": "Gboard",
+  "description": "Google Android Keyboard replica with Material You design, voice typing, custom themes, and unlimited copy-paste clipboard manager.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
