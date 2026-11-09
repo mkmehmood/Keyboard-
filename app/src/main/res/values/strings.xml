@@ -2,5 +2,10 @@
     <string name="app_name">Gboard</string>
     <string name="ime_name">Gboard Keyboard</string>
     <string name="subtype_en_us">English (US)</string>
+    <string name="subtype_en_gb">English (UK)</string>
+    <string name="subtype_es">Español (España)</string>
+    <string name="subtype_fr">Français (AZERTY)</string>
+    <string name="subtype_de">Deutsch (QWERTZ)</string>
+    <string name="settings_title">Keyboard settings</string>
     <string name="ime_service_description">Google Keyboard replica with unlimited copy-paste clipboard manager.</string>
 </resources>

@@ -10,8 +10,11 @@ import android.view.View
 import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import android.view.inputmethod.InputMethodManager
+import android.view.inputmethod.InputMethodSubtype
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -45,9 +48,22 @@ class GboardImeService : InputMethodService(),
 
     private var speechRecognizer: SpeechRecognizer? = null
 
+    /** Active subtype locale, e.g. "en_US"; drives layout and suggestion language. */
+    var localeTag by mutableStateOf("en_US")
+        private set
+
+    /** Bumped every time a new text field starts, so the UI can reset its typing state. */
+    var inputSession by mutableIntStateOf(0)
+        private set
+
     /** Bumped every time a new text field gets focus, so the UI can refresh auto-capitalization. */
     var inputSessionId by mutableIntStateOf(0)
         private set
+
+    override fun onCurrentInputMethodSubtypeChanged(newSubtype: InputMethodSubtype?) {
+        super.onCurrentInputMethodSubtypeChanged(newSubtype)
+        newSubtype?.locale?.let { localeTag = it }
+    }
 
     /** Deletes the word (and trailing spaces) before the cursor, like Gboard's swipe-to-delete. */
     fun deleteWordBeforeCursor() {
@@ -108,6 +124,10 @@ class GboardImeService : InputMethodService(),
         inputSessionId++
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         attachWindowOwners()
+
+        (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.currentInputMethodSubtype?.locale?.let { localeTag = it }
+        inputSession++
 
         // Capture system clipboard if auto-capture is enabled
         val app = applicationContext as? GboardApp

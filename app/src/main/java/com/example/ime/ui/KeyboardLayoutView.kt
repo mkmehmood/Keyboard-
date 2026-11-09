@@ -34,10 +34,12 @@ fun KeyboardLayoutView(
     onModeChange: (KeyboardMode) -> Unit,
     onEmojiClicked: () -> Unit,
     onSettingsClicked: () -> Unit,
+    layout: LayoutKind = LayoutKind.QWERTY,
     heightScale: Float = 1f,
     onDeleteWord: () -> Unit = {},
     onCursorMove: (Int) -> Unit = {}
 ) {
+    val letterRows = KeyboardPresets.rowsFor(layout)
     // Gesture hooks (null = feature disabled in settings)
     val backspaceDrag: ((Int) -> Unit)? = if (preferences.gestureDelete) {
         { steps -> if (steps < 0) repeat(-steps) { onDeleteWord() } }
@@ -76,7 +78,7 @@ fun KeyboardLayoutView(
                         .fillMaxWidth()
                         .height((44 * heightScale).dp)
                 ) {
-                    KeyboardPresets.qwertyRow1.forEach { key ->
+                    letterRows[0].forEach { key ->
                         val char = if (shiftState != ShiftState.LOWERCASE) key.primaryText.uppercase() else key.primaryText
                         KeyButton(
                             keyAction = key.copy(displayText = char),
@@ -93,9 +95,9 @@ fun KeyboardLayoutView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height((44 * heightScale).dp)
-                        .padding(horizontal = 14.dp)
+                        .padding(horizontal = if (letterRows[1].size >= 10) 0.dp else 14.dp)
                 ) {
-                    KeyboardPresets.qwertyRow2.forEach { key ->
+                    letterRows[1].forEach { key ->
                         val char = if (shiftState != ShiftState.LOWERCASE) key.primaryText.uppercase() else key.primaryText
                         KeyButton(
                             keyAction = key.copy(displayText = char),
@@ -129,7 +131,7 @@ fun KeyboardLayoutView(
                         onLongClick = onShiftDoubleClicked
                     )
 
-                    KeyboardPresets.qwertyRow3.forEach { key ->
+                    letterRows[2].forEach { key ->
                         val char = if (shiftState != ShiftState.LOWERCASE) key.primaryText.uppercase() else key.primaryText
                         KeyButton(
                             keyAction = key.copy(displayText = char),

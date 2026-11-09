@@ -36,7 +36,29 @@ enum class KeyType {
     SETTINGS_SHORTCUT
 }
 
+enum class LayoutKind(val rows: List<String>) {
+    QWERTY(listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")),
+    QWERTZ(listOf("qwertzuiop", "asdfghjkl", "yxcvbnm")),
+    AZERTY(listOf("azertyuiop", "qsdfghjklm", "wxcvbn"));
+
+    companion object {
+        fun forLocale(tag: String?): LayoutKind = when (tag?.lowercase()?.take(2)) {
+            "de" -> QWERTZ
+            "fr" -> AZERTY
+            else -> QWERTY
+        }
+    }
+}
+
 object KeyboardPresets {
+    private val hintByLetter: Map<String, String?> by lazy {
+        (qwertyRow1 + qwertyRow2 + qwertyRow3).associate { it.primaryText to it.hintText }
+    }
+
+    /** Letter rows for a layout, reusing the long-press hints of the QWERTY keys. */
+    fun rowsFor(layout: LayoutKind): List<List<KeyAction>> =
+        layout.rows.map { row -> row.map { c -> KeyAction(c.toString(), hintText = hintByLetter[c.toString()]) } }
+
     val numberRow = listOf(
         KeyAction("1", hintText = "~"),
         KeyAction("2", hintText = "@"),
