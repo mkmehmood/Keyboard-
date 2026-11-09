@@ -40,6 +40,10 @@ enum class DashboardTab(val title: String, val icon: ImageVector) {
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_TAB = "com.example.extra.TAB"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -50,7 +54,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
-                var selectedTab by remember { mutableStateOf(DashboardTab.SETUP) }
+                var selectedTab by remember {
+                    mutableStateOf(
+                        DashboardTab.values().firstOrNull { it.name == intent?.getStringExtra(EXTRA_TAB) }
+                            ?: DashboardTab.SETUP
+                    )
+                }
 
                 BackHandler(enabled = selectedTab != DashboardTab.SETUP) {
                     selectedTab = DashboardTab.SETUP
