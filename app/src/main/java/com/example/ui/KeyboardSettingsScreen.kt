@@ -58,7 +58,6 @@ fun KeyboardSettingsScreen(
     var oneHanded by remember { mutableStateOf(preferences.oneHandedMode) }
     var gestureDelete by remember { mutableStateOf(preferences.gestureDelete) }
     var spaceCursor by remember { mutableStateOf(preferences.spaceCursorControl) }
-    var doubleSpace by remember { mutableStateOf(preferences.doubleSpacePeriod) }
     var photoSet by remember { mutableStateOf(preferences.backgroundImagePath != null) }
 
     val context = LocalContext.current
@@ -357,17 +356,6 @@ fun KeyboardSettingsScreen(
                     onCheckedChange = {
                         spaceCursor = it
                         preferences.spaceCursorControl = it
-                    }
-                )
-
-                SettingToggleRow(
-                    title = "Double-Space Period",
-                    subtitle = "Tap space twice quickly to insert a period and space",
-                    icon = Icons.Default.MoreHoriz,
-                    checked = doubleSpace,
-                    onCheckedChange = {
-                        doubleSpace = it
-                        preferences.doubleSpacePeriod = it
                     }
                 )
 

@@ -109,10 +109,6 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getBoolean("glide_typing", true)
         set(value) = prefs.edit().putBoolean("glide_typing", value).apply()
 
-    var doubleSpacePeriod: Boolean
-        get() = prefs.getBoolean("double_space_period", true)
-        set(value) = prefs.edit().putBoolean("double_space_period", value).apply()
-
     /** ARGB ints for the user-built theme: background, key, accent. */
     var customBackground: Int
         get() = prefs.getInt("custom_bg", 0xFF1E1F22.toInt())
