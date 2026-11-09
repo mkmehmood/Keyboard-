@@ -43,6 +43,21 @@ fun KeyboardMainScreen(
     var mode by remember { mutableStateOf<KeyboardMode>(KeyboardMode.QWERTY) }
     var shiftState by remember { mutableStateOf(ShiftState.LOWERCASE) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var lastSpaceTime by remember { mutableLongStateOf(0L) }
+
+    // Auto-capitalization: ask the text field whether the next letter should start a sentence
+    fun refreshAutoShift() {
+        if (!preferences.autoCapitalize) return
+        if (shiftState == ShiftState.CAPS_LOCKED) return
+        val info = service.currentInputEditorInfo ?: return
+        val capsMode = service.currentInputConnection?.getCursorCapsMode(info.inputType) ?: 0
+        shiftState = if (capsMode != 0) ShiftState.UPPERCASE else ShiftState.LOWERCASE
+    }
+
+    // Re-check when a new field gets focus or the layout changes
+    LaunchedEffect(service.inputSessionId, mode) {
+        refreshAutoShift()
+    }
 
     // Observe latest clip from clipboard repository
     val allClips by repository.allClips.collectAsState(initial = emptyList())
@@ -217,6 +232,7 @@ fun KeyboardMainScreen(
                             if (shiftState == ShiftState.UPPERCASE) {
                                 shiftState = ShiftState.LOWERCASE
                             }
+                            refreshAutoShift()
                         },
                         onShiftClicked = {
                             shiftState = when (shiftState) {
@@ -230,9 +246,33 @@ fun KeyboardMainScreen(
                         },
                         onBackspaceClicked = {
                             service.sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+                            refreshAutoShift()
                         },
                         onSpaceClicked = {
-                            service.currentInputConnection?.commitText(" ", 1)
+                            val ic = service.currentInputConnection
+                            val now = System.currentTimeMillis()
+                            val before = ic?.getTextBeforeCursor(2, 0)?.toString().orEmpty()
+                            if (ic != null && preferences.doubleSpacePeriod &&
+                                now - lastSpaceTime < 500 &&
+                                before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit()
+                            ) {
+                                // Double-tap space -> ". " (like Gboard)
+                                ic.deleteSurroundingText(1, 0)
+                                ic.commitText(". ", 1)
+                                lastSpaceTime = 0L
+                            } else {
+                                ic?.commitText(" ", 1)
+                                lastSpaceTime = now
+                            }
+                            refreshAutoShift()
+                        },
+                        onDeleteWord = {
+                            service.deleteWordBeforeCursor()
+                            refreshAutoShift()
+                        },
+                        onCursorMove = { steps ->
+                            val code = if (steps < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
+                            repeat(kotlin.math.abs(steps)) { service.sendDownUpKeyEvents(code) }
                         },
                         onEnterClicked = {
                             val editorInfo = service.currentInputEditorInfo

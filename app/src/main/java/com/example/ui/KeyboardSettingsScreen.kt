@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,6 +53,9 @@ fun KeyboardSettingsScreen(
     var heightScale by remember { mutableFloatStateOf(preferences.keyboardHeightScale) }
     var bottomPadding by remember { mutableFloatStateOf(preferences.keyboardBottomPaddingDp.toFloat()) }
     var oneHanded by remember { mutableStateOf(preferences.oneHandedMode) }
+    var gestureDelete by remember { mutableStateOf(preferences.gestureDelete) }
+    var spaceCursor by remember { mutableStateOf(preferences.spaceCursorControl) }
+    var doubleSpace by remember { mutableStateOf(preferences.doubleSpacePeriod) }
     var photoSet by remember { mutableStateOf(preferences.backgroundImagePath != null) }
 
     val context = LocalContext.current
@@ -296,6 +300,39 @@ fun KeyboardSettingsScreen(
                     onCheckedChange = {
                         autoCap = it
                         preferences.autoCapitalize = it
+                    }
+                )
+
+                SettingToggleRow(
+                    title = "Swipe to Delete Words",
+                    subtitle = "Swipe left on backspace to delete whole words (hold to repeat)",
+                    icon = Icons.AutoMirrored.Filled.Backspace,
+                    checked = gestureDelete,
+                    onCheckedChange = {
+                        gestureDelete = it
+                        preferences.gestureDelete = it
+                    }
+                )
+
+                SettingToggleRow(
+                    title = "Space Bar Cursor Control",
+                    subtitle = "Swipe left or right on the space bar to move the cursor",
+                    icon = Icons.Default.SpaceBar,
+                    checked = spaceCursor,
+                    onCheckedChange = {
+                        spaceCursor = it
+                        preferences.spaceCursorControl = it
+                    }
+                )
+
+                SettingToggleRow(
+                    title = "Double-Space Period",
+                    subtitle = "Tap space twice quickly to insert a period and space",
+                    icon = Icons.Default.MoreHoriz,
+                    checked = doubleSpace,
+                    onCheckedChange = {
+                        doubleSpace = it
+                        preferences.doubleSpacePeriod = it
                     }
                 )
 

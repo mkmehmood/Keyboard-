@@ -10,6 +10,9 @@ import android.view.View
 import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
@@ -41,6 +44,21 @@ class GboardImeService : InputMethodService(),
     override val viewModelStore: ViewModelStore get() = store
 
     private var speechRecognizer: SpeechRecognizer? = null
+
+    /** Bumped every time a new text field gets focus, so the UI can refresh auto-capitalization. */
+    var inputSessionId by mutableIntStateOf(0)
+        private set
+
+    /** Deletes the word (and trailing spaces) before the cursor, like Gboard's swipe-to-delete. */
+    fun deleteWordBeforeCursor() {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(64, 0)?.toString() ?: return
+        if (before.isEmpty()) return
+        var i = before.length
+        while (i > 0 && before[i - 1].isWhitespace()) i--
+        while (i > 0 && !before[i - 1].isWhitespace()) i--
+        ic.deleteSurroundingText(before.length - i, 0)
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -87,6 +105,7 @@ class GboardImeService : InputMethodService(),
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        inputSessionId++
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         attachWindowOwners()
 

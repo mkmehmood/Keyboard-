@@ -34,8 +34,16 @@ fun KeyboardLayoutView(
     onModeChange: (KeyboardMode) -> Unit,
     onEmojiClicked: () -> Unit,
     onSettingsClicked: () -> Unit,
-    heightScale: Float = 1f
+    heightScale: Float = 1f,
+    onDeleteWord: () -> Unit = {},
+    onCursorMove: (Int) -> Unit = {}
 ) {
+    // Gesture hooks (null = feature disabled in settings)
+    val backspaceDrag: ((Int) -> Unit)? = if (preferences.gestureDelete) {
+        { steps -> if (steps < 0) repeat(-steps) { onDeleteWord() } }
+    } else null
+    val spaceDrag: ((Int) -> Unit)? = if (preferences.spaceCursorControl) onCursorMove else null
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -139,6 +147,9 @@ fun KeyboardLayoutView(
                         preferences = preferences,
                         isFunctionKey = true,
                         icon = Icons.AutoMirrored.Outlined.Backspace,
+                        holdRepeat = true,
+                        dragStepDp = 36.dp,
+                        onHorizontalDrag = backspaceDrag,
                         onClick = onBackspaceClicked
                     )
                 }
@@ -183,6 +194,7 @@ fun KeyboardLayoutView(
                         preferences = preferences,
                         isFunctionKey = true,
                         textSize = 13.sp,
+                        onHorizontalDrag = spaceDrag,
                         onClick = onSpaceClicked
                     )
 
@@ -219,7 +231,9 @@ fun KeyboardLayoutView(
                     onSpaceClicked = onSpaceClicked,
                     onEnterClicked = onEnterClicked,
                     onModeChange = onModeChange,
-                    heightScale = heightScale
+                    heightScale = heightScale,
+                    backspaceDrag = backspaceDrag,
+                    spaceDrag = spaceDrag
                 )
             }
 
@@ -278,6 +292,9 @@ fun KeyboardLayoutView(
                         palette = palette,
                         preferences = preferences,
                         isFunctionKey = true,
+                        holdRepeat = true,
+                        dragStepDp = 36.dp,
+                        onHorizontalDrag = backspaceDrag,
                         onClick = onBackspaceClicked
                     )
                 }
@@ -315,6 +332,7 @@ fun KeyboardLayoutView(
                         keyAction = KeyAction(" ", displayText = "Space", weight = 4.2f),
                         palette = palette,
                         preferences = preferences,
+                        onHorizontalDrag = spaceDrag,
                         onClick = onSpaceClicked
                     )
 
@@ -381,6 +399,9 @@ fun KeyboardLayoutView(
                         palette = palette,
                         preferences = preferences,
                         isFunctionKey = true,
+                        holdRepeat = true,
+                        dragStepDp = 36.dp,
+                        onHorizontalDrag = backspaceDrag,
                         onClick = onBackspaceClicked
                     )
                 }
@@ -418,6 +439,7 @@ fun KeyboardLayoutView(
                         keyAction = KeyAction(" ", displayText = "Space", weight = 4.2f),
                         palette = palette,
                         preferences = preferences,
+                        onHorizontalDrag = spaceDrag,
                         onClick = onSpaceClicked
                     )
 
@@ -478,7 +500,9 @@ private fun NumpadLayout(
     onSpaceClicked: () -> Unit,
     onEnterClicked: () -> Unit,
     onModeChange: (KeyboardMode) -> Unit,
-    heightScale: Float = 1f
+    heightScale: Float = 1f,
+    backspaceDrag: ((Int) -> Unit)? = null,
+    spaceDrag: ((Int) -> Unit)? = null
 ) {
     val digitRows = listOf(
         listOf("1", "2", "3"),
@@ -558,6 +582,7 @@ private fun NumpadLayout(
                     isFunctionKey = true,
                     icon = Icons.Default.SpaceBar,
                     cornerRadius = 12.dp,
+                    onHorizontalDrag = spaceDrag,
                     onClick = onSpaceClicked
                 )
             }
@@ -569,6 +594,9 @@ private fun NumpadLayout(
                     isFunctionKey = true,
                     icon = Icons.AutoMirrored.Outlined.Backspace,
                     cornerRadius = 12.dp,
+                    holdRepeat = true,
+                    dragStepDp = 36.dp,
+                    onHorizontalDrag = backspaceDrag,
                     onClick = onBackspaceClicked
                 )
             }

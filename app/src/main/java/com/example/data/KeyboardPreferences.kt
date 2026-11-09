@@ -45,6 +45,21 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getString("one_handed_mode", "off") ?: "off"
         set(value) = prefs.edit().putString("one_handed_mode", value).apply()
 
+    /** Swipe left on backspace to delete whole words. */
+    var gestureDelete: Boolean
+        get() = prefs.getBoolean("gesture_delete", true)
+        set(value) = prefs.edit().putBoolean("gesture_delete", value).apply()
+
+    /** Swipe along the space bar to move the cursor. */
+    var spaceCursorControl: Boolean
+        get() = prefs.getBoolean("space_cursor_control", true)
+        set(value) = prefs.edit().putBoolean("space_cursor_control", value).apply()
+
+    /** Double-tap space inserts ". ". */
+    var doubleSpacePeriod: Boolean
+        get() = prefs.getBoolean("double_space_period", true)
+        set(value) = prefs.edit().putBoolean("double_space_period", value).apply()
+
     var showKeyBorders: Boolean
         get() = prefs.getBoolean("show_key_borders", true)
         set(value) = prefs.edit().putBoolean("show_key_borders", value).apply()
