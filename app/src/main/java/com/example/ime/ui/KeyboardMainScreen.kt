@@ -1,8 +1,10 @@
 package com.example.ime.ui
 
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +50,21 @@ fun KeyboardMainScreen(
     var mode by remember { mutableStateOf<KeyboardMode>(KeyboardMode.QWERTY) }
     var shiftState by remember { mutableStateOf(ShiftState.LOWERCASE) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var lastSpaceTime by remember { mutableLongStateOf(0L) }
+
+    // Auto-capitalization: ask the text field whether the next letter should start a sentence
+    fun refreshAutoShift() {
+        if (!preferences.autoCapitalize) return
+        if (shiftState == ShiftState.CAPS_LOCKED) return
+        val info = service.currentInputEditorInfo ?: return
+        val capsMode = service.currentInputConnection?.getCursorCapsMode(info.inputType) ?: 0
+        shiftState = if (capsMode != 0) ShiftState.UPPERCASE else ShiftState.LOWERCASE
+    }
+
+    // Re-check when a new field gets focus or the layout changes
+    LaunchedEffect(service.inputSessionId, mode) {
+        refreshAutoShift()
+    }
 
     // Observe latest clip from clipboard repository
     val allClips by repository.allClips.collectAsState(initial = emptyList())
@@ -53,6 +72,17 @@ fun KeyboardMainScreen(
 
     // Active palette based on preferences
     val palette = KeyboardThemePalettes.getPalette(preferences)
+
+    // Optional custom photo background (only used by the "My Photo" theme)
+    val backgroundBitmap = remember(palette.translucent, preferences.backgroundImagePath) {
+        if (palette.translucent) {
+            preferences.backgroundImagePath?.let { path ->
+                runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
+            }
+        } else {
+            null
+        }
+    }
 
     // Number row state
     var isNumberRowVisible by remember { mutableStateOf(preferences.showNumberRow) }
@@ -171,6 +201,20 @@ fun KeyboardMainScreen(
             .wrapContentHeight()
             .background(palette.keyboardBackground)
     ) {
+        if (backgroundBitmap != null) {
+            Image(
+                bitmap = backgroundBitmap,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+            // Dark scrim keeps white key labels readable on any photo
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.3f))
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -202,7 +246,15 @@ fun KeyboardMainScreen(
                     onVoiceInput = {
                         service.startVoiceRecognition()
                     },
-                    onOpenThemes = { showThemeDialog = true }
+                    onOpenThemes = { showThemeDialog = true },
+                    onTranslate = {
+                        val launch = service.packageManager
+                            .getLaunchIntentForPackage("com.google.android.apps.translate")
+                        if (launch != null) {
+                            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            service.startActivity(launch)
+                        }
+                    }
                 )
             }
 
@@ -265,30 +317,38 @@ fun KeyboardMainScreen(
                     )
                 }
 
-                KeyboardMode.QWERTY, KeyboardMode.SYMBOLS_1, KeyboardMode.SYMBOLS_2 -> {
-                    Box(
-                        modifier = Modifier
-                            .onSizeChanged { keyboardWidthPx = it.width.toFloat() }
-                            .glideTyping(
-                                enabled = preferences.glideTyping && mode == KeyboardMode.QWERTY && keyboardWidthPx > 0f,
-                                canStart = { p ->
-                                    val keys = KeyGeometry.centers(layout.rows, keyboardWidthPx, density, preferences.showNumberRow)
-                                    val top = if (preferences.showNumberRow) 46f * density else 2f * density
-                                    p.y >= top && p.y <= KeyGeometry.lettersBottom(density, preferences.showNumberRow) &&
-                                        keys.values.any { k ->
-                                            val dx = k.x - p.x
-                                            val dy = k.y - p.y
-                                            dx * dx + dy * dy < (30f * density) * (30f * density)
-                                        }
-                                },
-                                onGlide = { path ->
-                                    val keys = KeyGeometry.centers(layout.rows, keyboardWidthPx, density, preferences.showNumberRow)
-                                    val letters = GlideDecoder.lettersFromPath(path, keys)
-                                    onGlide(GlideDecoder.candidates(letters, engine, 5))
-                                }
-                            )
-                    ) {
+                KeyboardMode.QWERTY, KeyboardMode.NUMPAD, KeyboardMode.SYMBOLS_1, KeyboardMode.SYMBOLS_2 -> {
+                  // One-handed mode squeezes the keys to one side of the screen
+                  val oneHanded = preferences.oneHandedMode
+                  Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = if (oneHanded == "left") Alignment.TopStart else Alignment.TopEnd
+                  ) {
+                    Box(modifier = if (oneHanded == "off") Modifier.fillMaxWidth() else Modifier.fillMaxWidth(0.82f)) {
+                        Box(
+                            modifier = Modifier
+                                .onSizeChanged { keyboardWidthPx = it.width.toFloat() }
+                                .glideTyping(
+                                    enabled = preferences.glideTyping && mode == KeyboardMode.QWERTY && keyboardWidthPx > 0f,
+                                    canStart = { p ->
+                                        val keys = KeyGeometry.centers(layout.rows, keyboardWidthPx, density, preferences.showNumberRow)
+                                        val top = if (preferences.showNumberRow) 46f * density else 2f * density
+                                        p.y >= top && p.y <= KeyGeometry.lettersBottom(density, preferences.showNumberRow) &&
+                                            keys.values.any { k ->
+                                                val dx = k.x - p.x
+                                                val dy = k.y - p.y
+                                                dx * dx + dy * dy < (30f * density) * (30f * density)
+                                            }
+                                    },
+                                    onGlide = { path ->
+                                        val keys = KeyGeometry.centers(layout.rows, keyboardWidthPx, density, preferences.showNumberRow)
+                                        val letters = GlideDecoder.lettersFromPath(path, keys)
+                                        onGlide(GlideDecoder.candidates(letters, engine, 5))
+                                    }
+                                )
+                        ) {
                     KeyboardLayoutView(
+                        heightScale = preferences.keyboardHeightScale,
                         mode = mode,
                         shiftState = shiftState,
                         imeAction = service.currentInputEditorInfo?.imeOptions ?: EditorInfo.IME_ACTION_DONE,
@@ -300,6 +360,7 @@ fun KeyboardMainScreen(
                             if (shiftState == ShiftState.UPPERCASE) {
                                 shiftState = ShiftState.LOWERCASE
                             }
+                            refreshAutoShift()
                         },
                         onShiftClicked = {
                             shiftState = when (shiftState) {
@@ -315,8 +376,21 @@ fun KeyboardMainScreen(
                             glideWord = null
                             service.sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
                             refreshSuggestions()
+                            refreshAutoShift()
                         },
-                        onSpaceClicked = { onSpace() },
+                        onSpaceClicked = {
+                            onSpace()
+                            refreshAutoShift()
+                        },
+                        onDeleteWord = {
+                            service.deleteWordBeforeCursor()
+                            refreshSuggestions()
+                            refreshAutoShift()
+                        },
+                        onCursorMove = { steps ->
+                            val code = if (steps < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
+                            repeat(kotlin.math.abs(steps)) { service.sendDownUpKeyEvents(code) }
+                        },
                         onEnterClicked = {
                             glideWord = null
                             val editorInfo = service.currentInputEditorInfo
@@ -338,8 +412,13 @@ fun KeyboardMainScreen(
                         }
                     )
                     }
+                   }
+                  }
                 }
             }
+
+            // Bottom margin (clears the gesture bar / rounded screen corners)
+            Spacer(modifier = Modifier.height(preferences.keyboardBottomPaddingDp.dp))
         }
 
         // Live Theme Selector In-Keyboard Overlay (replaces platform AlertDialog to prevent window token crash)

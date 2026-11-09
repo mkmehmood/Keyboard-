@@ -56,9 +56,24 @@ class GboardImeService : InputMethodService(),
     var inputSession by mutableIntStateOf(0)
         private set
 
+    /** Bumped every time a new text field gets focus, so the UI can refresh auto-capitalization. */
+    var inputSessionId by mutableIntStateOf(0)
+        private set
+
     override fun onCurrentInputMethodSubtypeChanged(newSubtype: InputMethodSubtype?) {
         super.onCurrentInputMethodSubtypeChanged(newSubtype)
         newSubtype?.locale?.let { localeTag = it }
+    }
+
+    /** Deletes the word (and trailing spaces) before the cursor, like Gboard's swipe-to-delete. */
+    fun deleteWordBeforeCursor() {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(64, 0)?.toString() ?: return
+        if (before.isEmpty()) return
+        var i = before.length
+        while (i > 0 && before[i - 1].isWhitespace()) i--
+        while (i > 0 && !before[i - 1].isWhitespace()) i--
+        ic.deleteSurroundingText(before.length - i, 0)
     }
 
     override fun onCreate() {
@@ -106,6 +121,7 @@ class GboardImeService : InputMethodService(),
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        inputSessionId++
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         attachWindowOwners()
 

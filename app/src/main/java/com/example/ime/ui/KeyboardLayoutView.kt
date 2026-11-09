@@ -1,10 +1,20 @@
 package com.example.ime.ui
 
 import android.view.inputmethod.EditorInfo
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.Backspace
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.SpaceBar
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.KeyboardPreferences
 import com.example.ime.model.*
 
@@ -24,9 +34,18 @@ fun KeyboardLayoutView(
     onModeChange: (KeyboardMode) -> Unit,
     onEmojiClicked: () -> Unit,
     onSettingsClicked: () -> Unit,
-    layout: LayoutKind = LayoutKind.QWERTY
+    layout: LayoutKind = LayoutKind.QWERTY,
+    heightScale: Float = 1f,
+    onDeleteWord: () -> Unit = {},
+    onCursorMove: (Int) -> Unit = {}
 ) {
     val letterRows = KeyboardPresets.rowsFor(layout)
+    // Gesture hooks (null = feature disabled in settings)
+    val backspaceDrag: ((Int) -> Unit)? = if (preferences.gestureDelete) {
+        { steps -> if (steps < 0) repeat(-steps) { onDeleteWord() } }
+    } else null
+    val spaceDrag: ((Int) -> Unit)? = if (preferences.spaceCursorControl) onCursorMove else null
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -40,7 +59,7 @@ fun KeyboardLayoutView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(42.dp)
+                            .height((42 * heightScale).dp)
                     ) {
                         KeyboardPresets.numberRow.forEach { key ->
                             KeyButton(
@@ -57,7 +76,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     letterRows[0].forEach { key ->
                         val char = if (shiftState != ShiftState.LOWERCASE) key.primaryText.uppercase() else key.primaryText
@@ -75,7 +94,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                         .padding(horizontal = if (letterRows[1].size >= 10) 0.dp else 14.dp)
                 ) {
                     letterRows[1].forEach { key ->
@@ -94,7 +113,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     // Shift Key
                     val shiftIcon = when (shiftState) {
@@ -129,45 +148,55 @@ fun KeyboardLayoutView(
                         palette = palette,
                         preferences = preferences,
                         isFunctionKey = true,
+                        icon = Icons.AutoMirrored.Outlined.Backspace,
+                        holdRepeat = true,
+                        dragStepDp = 36.dp,
+                        onHorizontalDrag = backspaceDrag,
                         onClick = onBackspaceClicked
                     )
                 }
 
-                // Row 4: ?123, Comma, Emoji, Space, Period, Enter
+                // Row 4: ?123, "/", Globe (emoji), Space, Period, Enter
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("?123", weight = 1.4f, type = KeyType.MODE_CHANGE),
                         palette = palette,
                         preferences = preferences,
                         isFunctionKey = true,
-                        onClick = { onModeChange(KeyboardMode.SYMBOLS_1) }
+                        onClick = { onModeChange(KeyboardMode.NUMPAD) }
                     )
 
+                    // Long-press "/" opens keyboard settings
                     KeyButton(
-                        keyAction = KeyAction(",", hintText = "⚙", weight = 1.0f),
+                        keyAction = KeyAction("/", weight = 1.0f),
                         palette = palette,
                         preferences = preferences,
-                        onClick = { onKeyClicked(KeyAction(",")) },
+                        isFunctionKey = true,
+                        onClick = { onKeyClicked(KeyAction("/")) },
                         onLongClick = onSettingsClicked
                     )
 
                     KeyButton(
-                        keyAction = KeyAction("😀", weight = 1.0f, type = KeyType.EMOJI_TOGGLE),
+                        keyAction = KeyAction("🌐", weight = 1.0f, type = KeyType.EMOJI_TOGGLE),
                         palette = palette,
                         preferences = preferences,
                         isFunctionKey = true,
+                        icon = Icons.Default.Language,
                         onClick = onEmojiClicked
                     )
 
                     // Spacebar with Gboard language hint
                     KeyButton(
-                        keyAction = KeyAction(" ", displayText = "English (US)", weight = 4.2f, type = KeyType.SPACE),
+                        keyAction = KeyAction(" ", displayText = "English", weight = 4.2f, type = KeyType.SPACE),
                         palette = palette,
                         preferences = preferences,
+                        isFunctionKey = true,
+                        textSize = 13.sp,
+                        onHorizontalDrag = spaceDrag,
                         onClick = onSpaceClicked
                     )
 
@@ -175,20 +204,39 @@ fun KeyboardLayoutView(
                         keyAction = KeyAction(".", hintText = "?", weight = 1.0f),
                         palette = palette,
                         preferences = preferences,
+                        isFunctionKey = true,
                         onClick = { onKeyClicked(KeyAction(".")) },
                         onLongClick = { onKeyClicked(KeyAction("?")) }
                     )
 
-                    // Dynamic Action / Enter Key
+                    // Dynamic Action / Enter Key (rounded pill like Gboard)
                     val actionLabel = getActionKeyLabel(imeAction)
                     KeyButton(
                         keyAction = KeyAction("enter", displayText = actionLabel, weight = 1.4f, type = KeyType.ENTER),
                         palette = palette,
                         preferences = preferences,
                         isActionKey = true,
+                        icon = getActionKeyIcon(imeAction),
+                        cornerRadius = 24.dp,
                         onClick = onEnterClicked
                     )
                 }
+            }
+
+            KeyboardMode.NUMPAD -> {
+                NumpadLayout(
+                    imeAction = imeAction,
+                    preferences = preferences,
+                    palette = palette,
+                    onKeyClicked = onKeyClicked,
+                    onBackspaceClicked = onBackspaceClicked,
+                    onSpaceClicked = onSpaceClicked,
+                    onEnterClicked = onEnterClicked,
+                    onModeChange = onModeChange,
+                    heightScale = heightScale,
+                    backspaceDrag = backspaceDrag,
+                    spaceDrag = spaceDrag
+                )
             }
 
             KeyboardMode.SYMBOLS_1 -> {
@@ -196,7 +244,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(42.dp)
+                        .height((42 * heightScale).dp)
                 ) {
                     KeyboardPresets.numberRow.forEach { key ->
                         KeyButton(keyAction = key, palette = palette, preferences = preferences, onClick = { onKeyClicked(key) })
@@ -206,7 +254,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyboardPresets.symbolsRow1.forEach { key ->
                         KeyButton(keyAction = key, palette = palette, preferences = preferences, onClick = { onKeyClicked(key) })
@@ -216,7 +264,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                         .padding(horizontal = 14.dp)
                 ) {
                     KeyboardPresets.symbolsRow2.forEach { key ->
@@ -227,7 +275,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("=\\<", displayText = "=\\<", weight = 1.35f),
@@ -246,6 +294,9 @@ fun KeyboardLayoutView(
                         palette = palette,
                         preferences = preferences,
                         isFunctionKey = true,
+                        holdRepeat = true,
+                        dragStepDp = 36.dp,
+                        onHorizontalDrag = backspaceDrag,
                         onClick = onBackspaceClicked
                     )
                 }
@@ -254,7 +305,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("ABC", weight = 1.4f),
@@ -283,6 +334,7 @@ fun KeyboardLayoutView(
                         keyAction = KeyAction(" ", displayText = "Space", weight = 4.2f),
                         palette = palette,
                         preferences = preferences,
+                        onHorizontalDrag = spaceDrag,
                         onClick = onSpaceClicked
                     )
 
@@ -309,7 +361,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyboardPresets.symbolsPage2Row1.forEach { key ->
                         KeyButton(keyAction = key, palette = palette, preferences = preferences, onClick = { onKeyClicked(key) })
@@ -319,7 +371,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                         .padding(horizontal = 14.dp)
                 ) {
                     KeyboardPresets.symbolsPage2Row2.forEach { key ->
@@ -330,7 +382,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("?123", displayText = "?123", weight = 1.35f),
@@ -349,6 +401,9 @@ fun KeyboardLayoutView(
                         palette = palette,
                         preferences = preferences,
                         isFunctionKey = true,
+                        holdRepeat = true,
+                        dragStepDp = 36.dp,
+                        onHorizontalDrag = backspaceDrag,
                         onClick = onBackspaceClicked
                     )
                 }
@@ -357,7 +412,7 @@ fun KeyboardLayoutView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height((44 * heightScale).dp)
                 ) {
                     KeyButton(
                         keyAction = KeyAction("ABC", weight = 1.4f),
@@ -386,6 +441,7 @@ fun KeyboardLayoutView(
                         keyAction = KeyAction(" ", displayText = "Space", weight = 4.2f),
                         palette = palette,
                         preferences = preferences,
+                        onHorizontalDrag = spaceDrag,
                         onClick = onSpaceClicked
                     )
 
@@ -422,5 +478,191 @@ private fun getActionKeyLabel(imeAction: Int): String {
         EditorInfo.IME_ACTION_NEXT -> "Next"
         EditorInfo.IME_ACTION_DONE -> "✓"
         else -> "↵"
+    }
+}
+
+private fun getActionKeyIcon(imeAction: Int): androidx.compose.ui.graphics.vector.ImageVector? {
+    return when (imeAction and EditorInfo.IME_MASK_ACTION) {
+        EditorInfo.IME_ACTION_GO, EditorInfo.IME_ACTION_DONE -> Icons.AutoMirrored.Filled.ArrowForward
+        else -> null
+    }
+}
+
+/**
+ * Number & operator pad (Gboard style): operator column on the left, 3x3 digits,
+ * "%" / space / backspace on the right, and a bottom row with ABC, ",", "!?#", 0, "=", ".", Enter.
+ */
+@Composable
+private fun NumpadLayout(
+    imeAction: Int,
+    preferences: KeyboardPreferences,
+    palette: KeyboardPalette,
+    onKeyClicked: (KeyAction) -> Unit,
+    onBackspaceClicked: () -> Unit,
+    onSpaceClicked: () -> Unit,
+    onEnterClicked: () -> Unit,
+    onModeChange: (KeyboardMode) -> Unit,
+    heightScale: Float = 1f,
+    backspaceDrag: ((Int) -> Unit)? = null,
+    spaceDrag: ((Int) -> Unit)? = null
+) {
+    val digitRows = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9")
+    )
+    val operators = listOf("+", "-", "*", "/")
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height((3 * 52 * heightScale).dp + 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        // Operator column (plain text, no key background)
+        Column(modifier = Modifier.weight(0.6f).fillMaxHeight()) {
+            operators.forEach { op ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clickable { onKeyClicked(KeyAction(op)) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = op,
+                        color = palette.keyTextColor.copy(alpha = 0.85f),
+                        fontSize = 20.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        // Digits 3x3
+        Column(
+            modifier = Modifier.weight(3f).fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            digitRows.forEach { row ->
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    row.forEach { d ->
+                        KeyButton(
+                            keyAction = KeyAction(d),
+                            palette = palette,
+                            preferences = preferences,
+                            textSize = 28.sp,
+                            cornerRadius = 12.dp,
+                            onClick = { onKeyClicked(KeyAction(d)) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Right column: %, space, backspace
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                KeyButton(
+                    keyAction = KeyAction("%"),
+                    palette = palette,
+                    preferences = preferences,
+                    isFunctionKey = true,
+                    textSize = 22.sp,
+                    cornerRadius = 12.dp,
+                    onClick = { onKeyClicked(KeyAction("%")) }
+                )
+            }
+            Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                KeyButton(
+                    keyAction = KeyAction(" ", displayText = "Space"),
+                    palette = palette,
+                    preferences = preferences,
+                    isFunctionKey = true,
+                    icon = Icons.Default.SpaceBar,
+                    cornerRadius = 12.dp,
+                    onHorizontalDrag = spaceDrag,
+                    onClick = onSpaceClicked
+                )
+            }
+            Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                KeyButton(
+                    keyAction = KeyAction("backspace", displayText = "⌫", type = KeyType.BACKSPACE),
+                    palette = palette,
+                    preferences = preferences,
+                    isFunctionKey = true,
+                    icon = Icons.AutoMirrored.Outlined.Backspace,
+                    cornerRadius = 12.dp,
+                    holdRepeat = true,
+                    dragStepDp = 36.dp,
+                    onHorizontalDrag = backspaceDrag,
+                    onClick = onBackspaceClicked
+                )
+            }
+        }
+    }
+
+    // Bottom row: ABC , !?# 0 = . Enter
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height((52 * heightScale).dp)
+    ) {
+        KeyButton(
+            keyAction = KeyAction("ABC", weight = 1.2f),
+            palette = palette,
+            preferences = preferences,
+            isFunctionKey = true,
+            onClick = { onModeChange(KeyboardMode.QWERTY) }
+        )
+        KeyButton(
+            keyAction = KeyAction(",", weight = 0.9f),
+            palette = palette,
+            preferences = preferences,
+            isFunctionKey = true,
+            onClick = { onKeyClicked(KeyAction(",")) }
+        )
+        KeyButton(
+            keyAction = KeyAction("!?#", weight = 1.2f),
+            palette = palette,
+            preferences = preferences,
+            isFunctionKey = true,
+            onClick = { onModeChange(KeyboardMode.SYMBOLS_1) }
+        )
+        KeyButton(
+            keyAction = KeyAction("0", weight = 1.6f),
+            palette = palette,
+            preferences = preferences,
+            textSize = 28.sp,
+            cornerRadius = 12.dp,
+            onClick = { onKeyClicked(KeyAction("0")) }
+        )
+        KeyButton(
+            keyAction = KeyAction("=", weight = 1.0f),
+            palette = palette,
+            preferences = preferences,
+            isFunctionKey = true,
+            onClick = { onKeyClicked(KeyAction("=")) }
+        )
+        KeyButton(
+            keyAction = KeyAction(".", weight = 0.8f),
+            palette = palette,
+            preferences = preferences,
+            isFunctionKey = true,
+            onClick = { onKeyClicked(KeyAction(".")) }
+        )
+        val actionLabel = getActionKeyLabel(imeAction)
+        KeyButton(
+            keyAction = KeyAction("enter", displayText = actionLabel, weight = 1.5f, type = KeyType.ENTER),
+            palette = palette,
+            preferences = preferences,
+            isActionKey = true,
+            icon = getActionKeyIcon(imeAction) ?: Icons.AutoMirrored.Filled.ArrowForward,
+            cornerRadius = 26.dp,
+            onClick = onEnterClicked
+        )
     }
 }

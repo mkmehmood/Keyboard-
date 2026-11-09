@@ -1,5 +1,10 @@
 package com.example.ui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,6 +53,26 @@ fun KeyboardSettingsScreen(
     var autoCaptureClip by remember { mutableStateOf(preferences.autoCaptureClipboard) }
     var keyPopup by remember { mutableStateOf(preferences.keyPopupEnabled) }
     var longPressDelay by remember { mutableFloatStateOf(preferences.longPressDelayMs.toFloat()) }
+    var heightScale by remember { mutableFloatStateOf(preferences.keyboardHeightScale) }
+    var bottomPadding by remember { mutableFloatStateOf(preferences.keyboardBottomPaddingDp.toFloat()) }
+    var oneHanded by remember { mutableStateOf(preferences.oneHandedMode) }
+    var gestureDelete by remember { mutableStateOf(preferences.gestureDelete) }
+    var spaceCursor by remember { mutableStateOf(preferences.spaceCursorControl) }
+    var doubleSpace by remember { mutableStateOf(preferences.doubleSpacePeriod) }
+    var photoSet by remember { mutableStateOf(preferences.backgroundImagePath != null) }
+
+    val context = LocalContext.current
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            val saved = saveKeyboardBackground(context, uri, preferences.backgroundImagePath)
+            if (saved != null) {
+                preferences.backgroundImagePath = saved
+                preferences.theme = KeyboardTheme.PHOTO
+                selectedTheme = KeyboardTheme.PHOTO
+                photoSet = true
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -146,6 +173,83 @@ fun KeyboardSettingsScreen(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Custom photo background
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(onClick = { photoPicker.launch("image/*") }) {
+                        Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (photoSet) "Change background photo" else "Choose background photo")
+                    }
+                    if (photoSet) {
+                        TextButton(onClick = {
+                            preferences.backgroundImagePath?.let { java.io.File(it).delete() }
+                            preferences.backgroundImagePath = null
+                            photoSet = false
+                        }) { Text("Remove") }
+                    }
+                }
+            }
+        }
+
+        // Keyboard size & position
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Keyboard Size & Position", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+                Column {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Key Height", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("${(heightScale * 100).toInt()}%", fontSize = 13.sp, color = GoogleBlue, fontWeight = FontWeight.Bold)
+                    }
+                    Slider(
+                        value = heightScale,
+                        onValueChange = {
+                            heightScale = it
+                            preferences.keyboardHeightScale = it
+                        },
+                        valueRange = 0.8f..1.3f
+                    )
+                }
+
+                Column {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Bottom Margin", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("${bottomPadding.toInt()} dp", fontSize = 13.sp, color = GoogleBlue, fontWeight = FontWeight.Bold)
+                    }
+                    Slider(
+                        value = bottomPadding,
+                        onValueChange = {
+                            bottomPadding = it
+                            preferences.keyboardBottomPaddingDp = it.toInt()
+                        },
+                        valueRange = 0f..48f
+                    )
+                }
+
+                Text("One-Handed Mode", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("off" to "Off", "left" to "Left", "right" to "Right").forEach { (value, label) ->
+                        FilterChip(
+                            selected = oneHanded == value,
+                            onClick = {
+                                oneHanded = value
+                                preferences.oneHandedMode = value
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
             }
         }
 
@@ -231,6 +335,39 @@ fun KeyboardSettingsScreen(
                     onCheckedChange = {
                         autoCap = it
                         preferences.autoCapitalize = it
+                    }
+                )
+
+                SettingToggleRow(
+                    title = "Swipe to Delete Words",
+                    subtitle = "Swipe left on backspace to delete whole words (hold to repeat)",
+                    icon = Icons.AutoMirrored.Filled.Backspace,
+                    checked = gestureDelete,
+                    onCheckedChange = {
+                        gestureDelete = it
+                        preferences.gestureDelete = it
+                    }
+                )
+
+                SettingToggleRow(
+                    title = "Space Bar Cursor Control",
+                    subtitle = "Swipe left or right on the space bar to move the cursor",
+                    icon = Icons.Default.SpaceBar,
+                    checked = spaceCursor,
+                    onCheckedChange = {
+                        spaceCursor = it
+                        preferences.spaceCursorControl = it
+                    }
+                )
+
+                SettingToggleRow(
+                    title = "Double-Space Period",
+                    subtitle = "Tap space twice quickly to insert a period and space",
+                    icon = Icons.Default.MoreHoriz,
+                    checked = doubleSpace,
+                    onCheckedChange = {
+                        doubleSpace = it
+                        preferences.doubleSpacePeriod = it
                     }
                 )
 
@@ -347,5 +484,42 @@ private fun SettingToggleRow(
             Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/**
+ * Copies the picked photo into app storage, scaled down (max 1080 px on the long side) so the
+ * keyboard can decode it quickly. Returns the new file path, or null on failure.
+ */
+private fun saveKeyboardBackground(context: android.content.Context, uri: Uri, oldPath: String?): String? {
+    return try {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 2160) sample *= 2
+        val decode = BitmapFactory.Options().apply { inSampleSize = sample }
+        val decoded = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decode) }
+            ?: return null
+
+        val longSide = maxOf(decoded.width, decoded.height)
+        val bitmap = if (longSide > 1080) {
+            val scale = 1080f / longSide
+            Bitmap.createScaledBitmap(
+                decoded,
+                (decoded.width * scale).toInt().coerceAtLeast(1),
+                (decoded.height * scale).toInt().coerceAtLeast(1),
+                true
+            )
+        } else decoded
+
+        // Unique name so the keyboard notices a changed photo
+        val out = java.io.File(context.filesDir, "keyboard_bg_${System.currentTimeMillis()}.jpg")
+        out.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
+        oldPath?.let { java.io.File(it).delete() }
+        out.absolutePath
+    } catch (e: Exception) {
+        null
     }
 }

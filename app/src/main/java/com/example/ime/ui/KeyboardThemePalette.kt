@@ -18,7 +18,9 @@ data class KeyboardPalette(
     val stripIconColor: Color,
     val chipBackground: Color,
     val chipTextColor: Color,
-    val isDark: Boolean
+    val isDark: Boolean,
+    /** Photo-style theme: custom background image, see-through keys, icon toolbar, no key hints. */
+    val translucent: Boolean = false
 )
 
 object KeyboardThemePalettes {
@@ -157,6 +159,22 @@ object KeyboardThemePalettes {
                 chipBackground = Color(0xFF40232C),
                 chipTextColor = Color(0xFFFFEBEE),
                 isDark = true
+            )
+            KeyboardTheme.PHOTO -> KeyboardPalette(
+                keyboardBackground = Color(0xFF2A2A2E), // fallback when no photo is chosen
+                keyBackground = Color.White.copy(alpha = 0.22f),
+                functionKeyBackground = Color.White.copy(alpha = 0.22f),
+                actionKeyBackground = Color(0xFF5B9BF8),
+                actionKeyTextColor = Color.White,
+                keyTextColor = Color.White,
+                hintTextColor = Color.White.copy(alpha = 0.7f),
+                keyBorderColor = Color.Transparent,
+                stripBackground = Color.Transparent,
+                stripIconColor = Color.White.copy(alpha = 0.85f),
+                chipBackground = Color.White.copy(alpha = 0.22f),
+                chipTextColor = Color.White,
+                isDark = true,
+                translucent = true
             )
         }
     }
