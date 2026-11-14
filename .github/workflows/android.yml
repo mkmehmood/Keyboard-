@@ -47,7 +47,18 @@ jobs:
           echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
       - name: Build debug and release APKs
-        run: gradle assembleDebug assembleRelease --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle assembleDebug assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Show build errors
+        if: failure()
+        shell: bash
+        run: |
+          { grep -E '^e: ' build.log; awk '/What went wrong/{c=6} c-->0' build.log; } \
+            | sed 's#file:///home/runner/work/[^/]*/[^/]*/##' | head -10 \
+            | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
 
       - name: Collect APKs
         run: |
